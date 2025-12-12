@@ -439,6 +439,46 @@ object DeviceService {
             throw IllegalStateException("Failed to start android emulator: $processOutput")
         }
 
+        // Merge local config.ini if present
+        val localConfig = File(System.getProperty("user.dir"), "config.ini")
+        if (localConfig.exists()) {
+            val androidHome = when (val env = System.getenv("ANDROID_USER_HOME")) {
+                null -> "${System.getProperty("user.home")}/.android"
+                else -> env
+            }
+            val avdConfig = File(androidHome, "avd/$name.avd/config.ini")
+            
+            if (avdConfig.exists()) {
+                try {
+                    val localEntries = localConfig.readLines()
+                        .filter { it.contains("=") && !it.trimStart().startsWith("#") }
+                        .associate { it.substringBefore("=").trim() to it.substringAfter("=").trim() }
+                    
+                    if (localEntries.isNotEmpty()) {
+                        val existingLines = avdConfig.readLines().toMutableList()
+                        val keyToIndex = existingLines
+                            .mapIndexedNotNull { i, line -> 
+                                if (line.contains("=")) line.substringBefore("=").trim() to i else null
+                            }
+                            .toMap()
+                        
+                        localEntries.forEach { (key, value) ->
+                            keyToIndex[key]?.let { index ->
+                                existingLines[index] = "$key=$value"
+                            } ?: run {
+                                existingLines.add("$key=$value")
+                            }
+                        }
+                        
+                        avdConfig.writeText(existingLines.joinToString("\n") + "\n")
+                        logger.info("Merged ${localEntries.size} entries from local config.ini into AVD $name")
+                    }
+                } catch (e: Exception) {
+                    logger.warn("Failed to merge local config.ini: ${e.message}")
+                }
+            }
+        }
+
         return name
     }
 
