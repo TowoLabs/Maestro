@@ -56,7 +56,7 @@ object DeviceService {
             Platform.ANDROID -> {
                 val emulatorBinary = requireEmulatorBinary()
 
-                ProcessBuilder(
+                val emulatorArgs = mutableListOf(
                     emulatorBinary.absolutePath,
                     "-avd",
                     device.modelId,
@@ -64,7 +64,18 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start().waitFor(10,TimeUnit.SECONDS)
+                )
+
+                // Support additional emulator flags via ANDROID_EMULATOR_FLAGS environment variable
+                // Example: ANDROID_EMULATOR_FLAGS="-no-window -no-audio -gpu swiftshader_indirect"
+                val extraFlags = System.getenv("ANDROID_EMULATOR_FLAGS")
+                if (!extraFlags.isNullOrBlank()) {
+                    emulatorArgs.addAll(extraFlags.split("\\s+".toRegex()).filter { it.isNotBlank() })
+                    logger.info("Using additional emulator flags: $extraFlags")
+                }
+
+                ProcessBuilder(emulatorArgs)
+                    .start().waitFor(10, TimeUnit.SECONDS)
 
                 var lastException: Exception? = null
 
