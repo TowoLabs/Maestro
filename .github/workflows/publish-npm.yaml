@@ -1,0 +1,69 @@
+name: Publish npm Package
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    publish-npm:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+            - name: Set up Java
+              uses: actions/setup-java@8df1039502a15bceb9433410b1a100fbe190c53b # v4.5.0
+              with:
+                  distribution: zulu
+                  java-version: 17
+                  cache: gradle
+
+            - name: Set up Node.js
+              uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+              with:
+                  node-version: "20.x"
+                  registry-url: "https://npm.pkg.github.com/"
+                  scope: "@towolabs"
+
+            - name: Build CLI distribution
+              run: ./gradlew :maestro-cli:installDist --no-daemon
+
+            - name: Extract version from gradle.properties
+              id: version
+              run: |
+                  CLI_VERSION=$(grep -w "CLI_VERSION" maestro-cli/gradle.properties | cut -d'=' -f2)
+                  echo "CLI_VERSION=$CLI_VERSION" >> $GITHUB_OUTPUT
+                  echo "Extracted version: $CLI_VERSION"
+
+            - name: Prepare npm package
+              run: |
+                  # Create package directory
+                  mkdir -p npm-package
+
+                  # Copy bin and lib directories from gradle build output
+                  cp -r maestro-cli/build/install/maestro/bin npm-package/
+                  cp -r maestro-cli/build/install/maestro/lib npm-package/
+
+                  # Copy and update package.json with the correct version
+                  cat package.json | jq --arg version "${{ steps.version.outputs.CLI_VERSION }}" '.version = $version' > npm-package/package.json
+
+                  # Make the maestro binary executable
+                  chmod +x npm-package/bin/maestro
+
+                  # Display package contents for debugging
+                  echo "Package contents:"
+                  ls -la npm-package/
+                  echo "Bin contents:"
+                  ls -la npm-package/bin/
+                  echo "Package.json:"
+                  cat npm-package/package.json
+
+            - name: Publish to GitHub Packages
+              working-directory: npm-package
+              run: npm publish
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

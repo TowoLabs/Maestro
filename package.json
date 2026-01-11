@@ -1,0 +1,42 @@
+{
+    "name": "@towolabs/maestro",
+    "version": "0.0.1",
+    "description": "The easiest way to automate UI testing for your mobile app",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/towolabs/Maestro.git"
+    },
+    "homepage": "https://maestro.mobile.dev",
+    "bugs": {
+        "url": "https://github.com/towolabs/Maestro/issues"
+    },
+    "bin": {
+        "maestro": "./bin/maestro"
+    },
+    "files": [
+        "bin",
+        "lib"
+    ],
+    "os": [
+        "darwin",
+        "linux",
+        "win32"
+    ],
+    "engines": {
+        "node": ">=18"
+    },
+    "keywords": [
+        "mobile",
+        "testing",
+        "automation",
+        "ios",
+        "android",
+        "ui-testing",
+        "e2e",
+        "end-to-end"
+    ],
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    }
+}
