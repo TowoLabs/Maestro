@@ -91,15 +91,16 @@ object DeviceCreateUtil {
     fun getOrCreateAndroidDevice(
         deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
+        val deviceName = deviceNameForShard(deviceSpec.deviceName, shardIndex)
         val systemImage = deviceSpec.emulatorImage
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
-            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
+        if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
+            throw CliError("A device with name $deviceName is already connected")
 
         // existing device
         val existingDevice =
             if (forceCreate) null
-            else DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.ANDROID)?.modelId
+            else DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.ANDROID)?.modelId
 
         // dependencies
         if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {
@@ -125,12 +126,12 @@ object DeviceCreateUtil {
             }
         }
 
-        if (existingDevice != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName}.")
-        else PrintUtils.message("Attempting to create Android emulator: ${deviceSpec.deviceName} ")
+        if (existingDevice != null) PrintUtils.message("Using existing device $deviceName.")
+        else PrintUtils.message("Attempting to create Android emulator: $deviceName ")
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = deviceSpec.deviceName,
+                deviceName = deviceName,
                 device = deviceSpec.model,
                 systemImage = systemImage,
                 tag = deviceSpec.tag,
@@ -141,7 +142,7 @@ object DeviceCreateUtil {
             throw CliError("${e.message}")
         }
 
-        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} ($systemImage)")
+        if (existingDevice == null) PrintUtils.message("Created Android emulator: $deviceName ($systemImage)")
 
         return Device.AvailableForLaunch(
             modelId = deviceLaunchId,
@@ -150,5 +151,9 @@ object DeviceCreateUtil {
             deviceType = Device.DeviceType.EMULATOR,
             deviceSpec = deviceSpec,
         )
+    }
+
+    internal fun deviceNameForShard(deviceName: String, shardIndex: Int?): String {
+        return shardIndex?.let { "${deviceName}_${it + 1}" } ?: deviceName
     }
 }
